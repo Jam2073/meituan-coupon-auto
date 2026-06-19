@@ -1,0 +1,44 @@
+name: 美团每日自动领券
+
+on:
+  schedule:
+    # 每天 10:30 北京时间 (02:30 UTC)
+    - cron: '30 2 * * *'
+  workflow_dispatch: # 支持手动触发测试
+
+jobs:
+  claim-coupon:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 安装依赖
+        run: pip install httpx
+
+      - name: 领取美团优惠券
+        id: claim
+        env:
+          MT_USER_TOKEN: ${{ secrets.MT_USER_TOKEN }}
+          MT_PHONE_MASKED: ${{ secrets.MT_PHONE_MASKED }}
+          MT_SUB_CHANNEL_CODE: ${{ secrets.MT_SUB_CHANNEL_CODE }}
+        run: python claim_coupon.py
+
+      - name: 领券结果通知
+        if: always()
+        run: |
+          echo "## 美团领券结果" >> $GITHUB_STEP_SUMMARY
+          echo "执行时间：$(date -u -d '+8 hours' '+%Y-%m-%d %H:%M:%S CST')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.claim.outcome }}" == "success" ]; then
+            echo "✅ 领券流程执行完成" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ 领券流程执行失败，请检查日志" >> $GITHUB_STEP_SUMMARY
+          fi
