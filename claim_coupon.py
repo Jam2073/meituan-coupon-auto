@@ -56,7 +56,18 @@ def main():
             timeout=15,
             verify=True
         )
-        resp_data = resp.json()
+        print(f"HTTP 状态码：{resp.status_code}")
+        try:
+            resp_data = resp.json()
+        except json.JSONDecodeError:
+            print(json.dumps({
+                "success": False,
+                "error": "INVALID_RESPONSE",
+                "message": "美团接口返回了非 JSON 响应",
+                "status_code": resp.status_code,
+                "response_preview": resp.text[:500],
+            }, ensure_ascii=False))
+            sys.exit(1)
     except httpx.TimeoutException:
         print(json.dumps({
             "success": False,
@@ -75,6 +86,16 @@ def main():
     code = resp_data.get("code")
     message = resp_data.get("message", "")
     data = resp_data.get("data")
+    if data is None:
+        data = {}
+
+    print("接口返回：")
+    print(json.dumps({
+        "code": code,
+        "message": message,
+        "data_type": type(data).__name__,
+        "data_keys": list(data.keys()) if isinstance(data, dict) else [],
+    }, ensure_ascii=False))
 
     # 错误码映射
     ERROR_MAP = {
@@ -85,9 +106,21 @@ def main():
 
     if code == 0:
         # 发券成功
+        if not isinstance(data, dict):
+            print(json.dumps({
+                "success": False,
+                "error": "INVALID_DATA",
+                "message": "美团接口 data 字段格式异常",
+                "data_type": type(data).__name__,
+            }, ensure_ascii=False))
+            sys.exit(1)
+
         success_list = data.get("successEquityList", [])
         print(f"\n{'='*50}")
-        print(f"🎉 美团权益领取成功！共 {len(success_list)} 张优惠券：\n")
+        if success_list:
+            print(f"🎉 美团权益领取成功！共 {len(success_list)} 张优惠券：\n")
+        else:
+            print("接口返回成功，但没有返回优惠券明细。\n")
 
         for i, equity in enumerate(success_list, 1):
             name = equity.get("userEquityName", "-")
@@ -111,7 +144,8 @@ def main():
             print()
 
         print(f"{'='*50}")
-        print(f"温馨提示：券已存入美团账户，可在美团 App「我的-红包卡券」查看使用。")
+        if success_list:
+            print(f"温馨提示：券已存入美团账户，可在美团 App「我的-红包卡券」查看使用。")
 
         # 输出结构化结果供 workflow 使用
         result = {
@@ -137,7 +171,9 @@ def main():
             print("（每天只能领取一次，明天再来哦~）")
         sys.exit(0)  # 已领取不算失败
     else:
-        print(f"\n❌ 系统繁忙，请稍后重试（错误码：{code}，{message}）")
+        print(f"\n❌ 领取失败（错误码：{code}，{message}）")
+        print("完整响应：")
+        print(json.dumps(resp_data, ensure_ascii=False))
         sys.exit(1)
 
 
