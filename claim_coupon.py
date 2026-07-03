@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -99,6 +100,7 @@ def main():
 
     # 错误码映射
     ERROR_MAP = {
+        4005: ("ACTIVITY_NOT_ACTIVE", "当前不在活动有效期内，敬请期待后续活动"),
         4009: ("ACTIVITY_ENDED", "活动已结束，暂时无法领取"),
         4010: ("ALREADY_RECEIVED", "今天已领取过美团权益"),
         4011: ("QUOTA_EXHAUSTED", "本次活动权益已发放完毕"),
